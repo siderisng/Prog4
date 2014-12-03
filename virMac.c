@@ -274,7 +274,7 @@ int main (int argc, char * argv[]){
 	curr=0;
 	int progress=0;
 	k=0;
-	while (k<7){
+	while (k<8){
 		for (i=0;i<3;i++){
 			command[i]=code[(tasks[curr].body)-1][tasks[curr].pc];
 			printf("%x ",command[i]);
