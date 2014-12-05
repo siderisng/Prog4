@@ -4,14 +4,14 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdint.h>
 
-
-int ** code;
+uint8_t ** code;
 int curr;
-int * globalMem;
+uint8_t * globalMem;
 typedef struct task{
-	int body;
-	int arg;
+	uint8_t body;
+	uint8_t arg;
 	int id;
 	char state[10];
 	int reg[8];
@@ -25,16 +25,19 @@ int main (int argc, char * argv[]){
 	
 	FILE * fp;
 	
-	int command[3];
+	uint8_t command[3];
 	int i,k,flag=0;
-	int magicbeg[4];
-	int globalsize;
-	int numofbodies;
-	int totalcodesize[2];
-	int notasks;
-	int codeSize;
-	int * localSize;
+	uint8_t magicbeg[4];
+	uint8_t globalsize;
+	uint8_t numofbodies;
+	uint8_t totalcodesize[2];
+	uint8_t notasks;
+	uint8_t codeSize;
+	uint8_t * localSize;
 	taskT * tasks;
+	
+	
+	
 	
 	if (argc < 2){ 
 		printf ("Not enough arguments\n");
@@ -44,10 +47,11 @@ int main (int argc, char * argv[]){
 	//----------read header file---------------
 	//----------magic beg----------------
 	for (i=0;i<4;i++){
-		fscanf(fp,"%x",&magicbeg[i]);
+		fread (&magicbeg[i],1,1,fp);
+		
 		printf("%x", magicbeg[i]);
 		
-	}
+		}
 	printf("\n");
 	
 	
@@ -72,25 +76,25 @@ int main (int argc, char * argv[]){
 	
 	//---------global size----------------
 	
-	fscanf(fp, "%x",&globalsize);
+	fread (&globalsize,1,1,fp);
 	printf("%x", globalsize);
 	printf("\n");
 	//----------numofbodies------------
 	
-	fscanf(fp,"%x",&numofbodies);
+	fread (&numofbodies,1,1,fp);
 	printf("%x", numofbodies);
 	printf("\n");
 	
 	//-------totalsize------------
 	for(i=0;i<2;i++){
-		fscanf(fp,"%x",&totalcodesize[i]);
-		printf("%x", totalcodesize[i]);
+		fread (&totalcodesize[i],1,1,fp);
+		printf("%x ", totalcodesize[i]);
 	}
 	printf("\n");
 	
 	//----notasks-----------
 	
-	fscanf(fp,"%x",&notasks);
+	fread (&notasks,1,1,fp);
 	printf("%x", notasks);
 	printf("\n");
 	
@@ -99,12 +103,12 @@ int main (int argc, char * argv[]){
 	
 	//---------initialize globals------------
 	
-	if (NULL==(globalMem=((int*)malloc (sizeof(int)*globalsize)))){
+	if (NULL==(globalMem=((uint8_t*)malloc (sizeof(uint8_t)*globalsize)))){
 		perror("malloc error");
 		return (1);
 	}
 	for(i=0;i<globalsize;i++){
-		fscanf(fp,"%x",&globalMem[i]);
+		fread (&globalMem[i],1,1,fp);
 		printf("%x", globalMem[i]);
 	}
 	printf("\n");
@@ -114,12 +118,12 @@ int main (int argc, char * argv[]){
 	}
 	
 	
-	if (NULL==(code=((int**)malloc (sizeof(int*)*numofbodies)))){
+	if (NULL==(code=((uint8_t**)malloc (sizeof(uint8_t*)*numofbodies)))){
 		perror("malloc error");
 		return (1);
 	}
 	
-	if (NULL==(localSize=((int*)malloc (sizeof(int)*numofbodies)))){
+	if (NULL==(localSize=((uint8_t*)malloc (sizeof(uint8_t)*numofbodies)))){
 		perror("malloc error");
 		return (1);
 	}
@@ -131,7 +135,7 @@ int main (int argc, char * argv[]){
 		
 		
 		for (i=0;i<4;i++){
-			fscanf(fp,"%x",&magicbeg[i]);
+			fread (&magicbeg[i],1,1,fp);
 			printf("%x", magicbeg[i]);
 			
 		}
@@ -156,7 +160,7 @@ int main (int argc, char * argv[]){
 		
 		//---------------local size--------------
 		
-		fscanf(fp,"%x",&localSize[k]);
+		fread (&localSize[k],1,1,fp);
 		printf("%x", localSize[k]);
 		printf("\n");
 		
@@ -164,17 +168,22 @@ int main (int argc, char * argv[]){
 		//---------code size----------------
 		
 		
-		fscanf(fp,"%x",&codeSize);
+		fread (&codeSize,1,1,fp);
 		printf("%x", codeSize);
-		printf("\n");
 		
-		if (NULL==(code[k]=((int*)malloc (sizeof(int)*codeSize)))){
+		
+		if (NULL==(code[k]=((uint8_t*)malloc (sizeof(uint8_t)*codeSize)))){
 			perror("malloc error");
 			return (1);
 		}
 		for (i=0;i<codeSize;i++){
-			fscanf(fp,"%x", &code[k][i]);
-			printf("%x", code[k][i]);
+			fread (&code[k][i] ,1,1,fp);
+			if ((i%3)==0){
+				printf ("\n");
+			}
+			
+			printf("%x ", code[k][i]);
+			
 		}
 		printf("\n");
 	}
@@ -184,7 +193,7 @@ int main (int argc, char * argv[]){
 	//----------read task parameters etc----------
 	for (k=0;k<notasks;k++){
 		for (i=0;i<4;i++){
-			fscanf(fp,"%x",&magicbeg[i]);
+			fread (&magicbeg[i],1,1,fp);
 			printf("%x", magicbeg[i]);
 			
 		}
@@ -209,13 +218,14 @@ int main (int argc, char * argv[]){
 		
 		
 		//----task body------------------
-		fscanf(fp,"%x",&tasks[k].body);
+		printf ("hi\n");
+		fread (&tasks[k].body ,1,1,fp);
 		printf("%x", tasks[k].body);
 		printf("\n");
 		
-
+		printf ("hi\n");
 		//------argument------------
-		fscanf(fp,"%x",&tasks[k].arg);
+		fread (&tasks[k].arg ,1,1,fp);
 		printf("%x", tasks[k].arg);
 		printf("\n");
 		
@@ -241,7 +251,7 @@ int main (int argc, char * argv[]){
 	//-----------footer---------------------
 	
 	for (i=0;i<4;i++){
-		fscanf(fp,"%x",&magicbeg[i]);
+		fread (&magicbeg[i],1,1,fp);
 		printf("%x", magicbeg[i]);
 		
 	}
