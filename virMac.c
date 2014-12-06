@@ -7,6 +7,8 @@
 #include <stdint.h>
 #include <time.h>
 
+#define turns 2
+
 uint8_t ** code;
 int curr;
 uint8_t * globalMem;
@@ -31,7 +33,7 @@ int main (int argc, char * argv[]){
 	uint8_t magicbeg[4];
 	uint8_t globalsize;
 	uint8_t numofbodies;
-	uint8_t totalcodesize[2];
+	uint16_t totalcodesize;
 	uint8_t notasks;
 	uint8_t codeSize;
 	uint8_t * localSize;
@@ -87,10 +89,10 @@ int main (int argc, char * argv[]){
 	printf("\n");
 	
 	//-------totalsize------------
-	for(i=0;i<2;i++){
-		fread (&totalcodesize[i],1,1,fp);
-		printf("%x ", totalcodesize[i]);
-	}
+	
+	fread (&totalcodesize,1,2,fp);
+	printf("%x ", totalcodesize);
+	
 	printf("\n");
 	
 	//----notasks-----------
@@ -108,9 +110,15 @@ int main (int argc, char * argv[]){
 		perror("malloc error");
 		return (1);
 	}
-	for(i=0;i<globalsize;i++){
-		fread (&globalMem[i],1,1,fp);
-		printf("%x", globalMem[i]);
+	if (i==0){
+		
+		globalMem[i]=0x00;
+	}else{
+		for(i=0;i<globalsize;i++){
+			fread (&globalMem[i],1,1,fp);
+			printf("%x", globalMem[i]);
+		}
+		
 	}
 	printf("\n");
 	if (NULL==(tasks=((taskT*)malloc (sizeof(taskT)*notasks)))){
@@ -133,7 +141,7 @@ int main (int argc, char * argv[]){
 	//-----------header-----------------
 	//----------magic beg----------------
 	for (k=0;k<numofbodies;k++){
-		
+		printf ("HIII\n");
 		
 		for (i=0;i<4;i++){
 			fread (&magicbeg[i],1,1,fp);
@@ -177,6 +185,7 @@ int main (int argc, char * argv[]){
 			perror("malloc error");
 			return (1);
 		}
+		
 		for (i=0;i<codeSize;i++){
 			fread (&code[k][i] ,1,1,fp);
 			if ((i%3)==0){
@@ -219,12 +228,12 @@ int main (int argc, char * argv[]){
 		
 		
 		//----task body------------------
-		printf ("hi\n");
+		
 		fread (&tasks[k].body ,1,1,fp);
 		printf("%x", tasks[k].body);
 		printf("\n");
 		
-		printf ("hi\n");
+		
 		//------argument------------
 		fread (&tasks[k].arg ,1,1,fp);
 		printf("%x", tasks[k].arg);
@@ -248,7 +257,7 @@ int main (int argc, char * argv[]){
 		
 	}
 	
-	
+	printf ("HI2\n");
 	//-----------footer---------------------
 	
 	for (i=0;i<4;i++){
@@ -260,7 +269,7 @@ int main (int argc, char * argv[]){
 	
 	
 	if (magicbeg[0]==0xfe){
-		if (magicbeg[1]==0xe1){
+		if 	(magicbeg[1]==0xe1){
 			if (magicbeg[2]==0xde){
 				if(magicbeg[3]==0xad){
 					flag=1;
@@ -293,7 +302,7 @@ int main (int argc, char * argv[]){
 		}
 		//printf("\n");
 		printf ("HIII from task :%d state:%s notasks:%d\n", tasks[curr].id,tasks[curr].state, notasks);	
-
+		
 		switch(command[0]){
 			// -----------load/store----------------------------
 			case 0x01 :
@@ -429,10 +438,10 @@ int main (int argc, char * argv[]){
 					endflag=1;
 					break;
 				}
-					curr=i;
-					
-					break;
-					
+				curr=i;
+				
+				break;
+				
 			case 0x16:
 				globalMem[command[2]]++;
 				
@@ -474,10 +483,10 @@ int main (int argc, char * argv[]){
 					
 				}
 				else{
-				curr=i;}
-				
-				break;
-				
+					curr=i;}
+					
+					break;
+					
 			case 0x18:
 				
 				strcpy(tasks[i].state,"SLEEPING");
@@ -493,7 +502,7 @@ int main (int argc, char * argv[]){
 			case 0x1a:
 				
 				strcpy(tasks[curr].state,"STOPPED");
-			
+				
 				progress=0;
 				i=0;
 				progress=0;
@@ -522,41 +531,41 @@ int main (int argc, char * argv[]){
 				break;
 				
 		}
-				if (progress==5){
-					progress=0;
-					i=0;
-					for (i=0;i<notasks;i++){
-						if ((i!=curr)&&(strcmp(tasks[i].state,"BLOCKED"))&&(strcmp(tasks[i].state,"STOPPED"))){
-							
-							if (((!strcmp(tasks[i].state,"SLEEPING"))&&(time(NULL)>tasks[i].waket))){
-								
-								strcpy (tasks[i].state,"READY");
-								tasks[i].waket=0;
-								break;
-							}
-							else if ((strcmp(tasks[i].state,"SLEEPING"))){
-								
-								break;
-							}
-							
-						}
+		if (progress==turns){
+			progress=0;
+			i=0;
+			for (i=0;i<notasks;i++){
+				if ((i!=curr)&&(strcmp(tasks[i].state,"BLOCKED"))&&(strcmp(tasks[i].state,"STOPPED"))){
+					
+					if (((!strcmp(tasks[i].state,"SLEEPING"))&&(time(NULL)>tasks[i].waket))){
 						
+						strcpy (tasks[i].state,"READY");
+						tasks[i].waket=0;
+						break;
 					}
-					
-					if (i!=notasks){
-						curr=i;
+					else if ((strcmp(tasks[i].state,"SLEEPING"))){
+						
+						break;
 					}
 					
 				}
 				
-				
-				if (endflag==1){
-					printf ("end of programm\n");
-					break;
-				}
+			}
+			
+			if (i!=notasks){
+				curr=i;
+			}
+			
 		}
 		
 		
-		
-		return (0);
+		if (endflag==1){
+			printf ("end of programm\n");
+			break;
+		}
 	}
+	
+	printf ("reg1 a %d, reg 2 b %d\n", tasks[0].reg[1], tasks[1].reg[2]);
+	
+	return (0);
+}
