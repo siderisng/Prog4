@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <time.h>
 
-#define turns 2
+#define turns 15
 
 uint8_t ** code;
 int curr;
@@ -301,7 +301,8 @@ int main (int argc, char * argv[]){
 			tasks[curr].pc++;
 		}
 		//printf("\n");
-		printf ("HIII from task :%d state:%s notasks:%d\n", tasks[curr].id,tasks[curr].state, notasks);	
+		
+	//printf ("curr : %d reg1  %d, reg 2  %d\n", curr, tasks[curr].reg[1], tasks[curr].reg[2]);
 		
 		switch(command[0]){
 			// -----------load/store----------------------------
@@ -318,6 +319,7 @@ int main (int argc, char * argv[]){
 			case 0x03 :
 				tasks[curr].reg[command[1]]=globalMem[command[2]];
 				//	printf("%x\n",tasks[curr].reg[command[1]]);
+				printf ("03\n");
 				progress++;
 				break;
 			case 0x04 :
@@ -339,6 +341,7 @@ int main (int argc, char * argv[]){
 				globalMem[command[2]]=tasks[curr].reg[command[1]];
 				//	printf("%x\n",tasks[curr].reg[command[1]]);
 				progress++;
+				printf ("07\n");
 				break;
 			case 0x08 :
 				globalMem[command[2]+tasks[curr].reg[0]]=tasks[curr].reg[command[1]];
@@ -349,6 +352,7 @@ int main (int argc, char * argv[]){
 			case 0x09:
 				tasks[curr].reg[command[1]]=command[2];
 				progress++;
+				printf ("09\n");
 				break;
 			case 0x0A:
 				tasks[curr].reg[command[1]]=tasks[curr].reg[command[1]]+tasks[curr].reg[command[2]];
@@ -357,6 +361,7 @@ int main (int argc, char * argv[]){
 			case 0x0B:
 				tasks[curr].reg[command[1]]=tasks[curr].reg[command[1]]-tasks[curr].reg[command[2]];
 				progress++;
+				printf ("0b\n");
 				break;
 			case 0x0C:
 				tasks[curr].reg[command[1]]=tasks[curr].reg[command[1]]*tasks[curr].reg[command[2]];
@@ -375,36 +380,37 @@ int main (int argc, char * argv[]){
 				
 			case 0x0F:
 				if (tasks[curr].reg[command[1]]>0){
-					tasks[curr].pc=tasks[curr].pc+command[2];
+					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeof(code[((tasks[curr].body)-1)]));
 				}
 				progress++;
+				printf ("0f\n");
 				break;
 			case 0x10:
 				if (tasks[curr].reg[command[1]]>=0){
-					tasks[curr].pc=tasks[curr].pc+command[2];
+					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeof(code[((tasks[curr].body)-1)]));
 				}
 				progress++;
 				break;
 			case 0x11:
 				if (tasks[curr].reg[command[1]]<0){
-					tasks[curr].pc=tasks[curr].pc+command[2];
+					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeof(code[((tasks[curr].body)-1)]));
 				}
 				progress++;
 				break;
 			case 0x12:
 				if (tasks[curr].reg[command[1]]<=0){
-					tasks[curr].pc=tasks[curr].pc+command[2];
+					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeof(code[((tasks[curr].body)-1)]));
 				}
 				progress++;
 				break;
 			case 0x13:
 				if (tasks[curr].reg[command[1]]==0){
-					tasks[curr].pc=tasks[curr].pc+command[2];
+					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeof(code[((tasks[curr].body)-1)]));
 				}
 				progress++;
 				break;
 			case 0x14:
-				tasks[curr].pc=tasks[curr].pc+command[2];
+				tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeof(code[((tasks[curr].body)-1)]));
 				progress++;
 				break;
 				
@@ -565,7 +571,6 @@ int main (int argc, char * argv[]){
 		}
 	}
 	
-	printf ("reg1 a %d, reg 2 b %d\n", tasks[0].reg[1], tasks[1].reg[2]);
 	
 	return (0);
 }
