@@ -7,9 +7,10 @@
 #include <stdint.h>
 #include <time.h>
 
-#define turns 15
+#define turns 10
 
 uint8_t ** code;
+uint8_t * sizeOfBody;
 int curr;
 uint8_t * globalMem;
 typedef struct task{
@@ -110,16 +111,16 @@ int main (int argc, char * argv[]){
 		perror("malloc error");
 		return (1);
 	}
-	if (i==0){
-		
-		globalMem[i]=0x00;
-	}else{
-		for(i=0;i<globalsize;i++){
-			fread (&globalMem[i],1,1,fp);
-			printf("%x", globalMem[i]);
-		}
-		
+	
+	for(i=0;i<globalsize;i++){
+		fread (&globalMem[i],1,1,fp);
+		printf("%x", globalMem[i]);
 	}
+	if (NULL==(sizeOfBody=((uint8_t*)malloc (sizeof(uint8_t)*numofbodies)))){
+		perror("malloc error");
+		return (1);
+	}	
+	
 	printf("\n");
 	if (NULL==(tasks=((taskT*)malloc (sizeof(taskT)*notasks)))){
 		perror("malloc error");
@@ -179,7 +180,7 @@ int main (int argc, char * argv[]){
 		
 		fread (&codeSize,1,1,fp);
 		printf("%x", codeSize);
-		
+		sizeOfBody[k]=codeSize;
 		
 		if (NULL==(code[k]=((uint8_t*)malloc (sizeof(uint8_t)*codeSize)))){
 			perror("malloc error");
@@ -294,6 +295,8 @@ int main (int argc, char * argv[]){
 	curr=0;
 	int progress=0;
 	k=0;
+	
+	
 	while (1){
 		for (i=0;i<3;i++){
 			command[i]=code[(tasks[curr].body)-1][tasks[curr].pc];
@@ -302,7 +305,6 @@ int main (int argc, char * argv[]){
 		}
 		//printf("\n");
 		
-	//printf ("curr : %d reg1  %d, reg 2  %d\n", curr, tasks[curr].reg[1], tasks[curr].reg[2]);
 		
 		switch(command[0]){
 			// -----------load/store----------------------------
@@ -317,9 +319,11 @@ int main (int argc, char * argv[]){
 				progress++;
 				break;
 			case 0x03 :
+				
+			
 				tasks[curr].reg[command[1]]=globalMem[command[2]];
 				//	printf("%x\n",tasks[curr].reg[command[1]]);
-				printf ("03\n");
+				
 				progress++;
 				break;
 			case 0x04 :
@@ -338,10 +342,12 @@ int main (int argc, char * argv[]){
 				progress++;
 				break;
 			case 0x07 :
+				
 				globalMem[command[2]]=tasks[curr].reg[command[1]];
 				//	printf("%x\n",tasks[curr].reg[command[1]]);
 				progress++;
-				printf ("07\n");
+				printf ("global Mem:%d reg3 :%d\n",globalMem[command[2]], tasks[curr].reg[3] );
+				
 				break;
 			case 0x08 :
 				globalMem[command[2]+tasks[curr].reg[0]]=tasks[curr].reg[command[1]];
@@ -352,16 +358,17 @@ int main (int argc, char * argv[]){
 			case 0x09:
 				tasks[curr].reg[command[1]]=command[2];
 				progress++;
-				printf ("09\n");
+				
 				break;
 			case 0x0A:
+				
 				tasks[curr].reg[command[1]]=tasks[curr].reg[command[1]]+tasks[curr].reg[command[2]];
 				progress++;
 				break;
 			case 0x0B:
 				tasks[curr].reg[command[1]]=tasks[curr].reg[command[1]]-tasks[curr].reg[command[2]];
 				progress++;
-				printf ("0b\n");
+				
 				break;
 			case 0x0C:
 				tasks[curr].reg[command[1]]=tasks[curr].reg[command[1]]*tasks[curr].reg[command[2]];
@@ -380,78 +387,83 @@ int main (int argc, char * argv[]){
 				
 			case 0x0F:
 				if (tasks[curr].reg[command[1]]>0){
-					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeof(code[((tasks[curr].body)-1)]));
+					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeOfBody[((tasks[curr].body)-1)]);
+					printf ("pc: %d\n", tasks[curr].pc);
 				}
 				progress++;
-				printf ("0f\n");
+				
 				break;
 			case 0x10:
 				if (tasks[curr].reg[command[1]]>=0){
-					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeof(code[((tasks[curr].body)-1)]));
+					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeOfBody[((tasks[curr].body)-1)]);
 				}
 				progress++;
 				break;
 			case 0x11:
 				if (tasks[curr].reg[command[1]]<0){
-					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeof(code[((tasks[curr].body)-1)]));
+					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeOfBody[((tasks[curr].body)-1)]);
 				}
 				progress++;
 				break;
 			case 0x12:
 				if (tasks[curr].reg[command[1]]<=0){
-					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeof(code[((tasks[curr].body)-1)]));
+					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeOfBody[((tasks[curr].body)-1)]);
 				}
 				progress++;
 				break;
 			case 0x13:
 				if (tasks[curr].reg[command[1]]==0){
-					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeof(code[((tasks[curr].body)-1)]));
+					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeOfBody[((tasks[curr].body)-1)]);
 				}
 				progress++;
 				break;
 			case 0x14:
-				tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeof(code[((tasks[curr].body)-1)]));
+				tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeOfBody[((tasks[curr].body)-1)]);
+			
 				progress++;
 				break;
 				
 				// ----------- synch ------------------
 			case 0x15:
-				globalMem[command[2]]--;
-				if (globalMem[command[2]]<0) {
-					strcpy(tasks[curr].state,"BLOCKED");
-				}
-				tasks[curr].sem=command[2];
-				progress=0;
-				i=0;
-				progress=0;
 				
-				for (i=0;i<notasks;i++){
-					if ((i!=curr)&&(strcmp(tasks[i].state,"BLOCKED"))&&(strcmp(tasks[i].state,"STOPPED"))){
-						if (((!strcmp(tasks[i].state,"SLEEPING"))&&(time(NULL)>tasks[i].waket))){
-							strcpy (tasks[i].state,"READY");
-							tasks[i].waket=0;
-							break;
-						}
-						else if ((strcmp(tasks[i].state,"SLEEPING"))){
-							break;
+				globalMem[command[2]]++;
+				progress++;
+				
+				if (globalMem[command[2]]>1) {
+					strcpy(tasks[curr].state,"BLOCKED");
+					
+					tasks[curr].sem=command[2];
+					progress=0;
+					i=0;
+					progress=0;
+					
+					for (i=0;i<notasks;i++){
+						if ((i!=curr)&&(strcmp(tasks[i].state,"BLOCKED"))&&(strcmp(tasks[i].state,"STOPPED"))){
+							if (((!strcmp(tasks[i].state,"SLEEPING"))&&(time(NULL)>tasks[i].waket))){
+								strcpy (tasks[i].state,"READY");
+								tasks[i].waket=0;
+								break;
+							}
+							else if ((strcmp(tasks[i].state,"SLEEPING"))){
+								break;
+							}
+							
 						}
 						
 					}
-					
+					if (i==notasks){
+						printf ("Nowhere to go to from here :(");
+						endflag=1;
+						break;
+					}
+					curr=i;
 				}
-				if (i==notasks){
-					printf ("Nowhere to go to from here :(");
-					endflag=1;
-					break;
-				}
-				curr=i;
-				
 				break;
 				
 			case 0x16:
-				globalMem[command[2]]++;
+				globalMem[command[2]]--;
 				
-				if (globalMem[command[2]]<=0) {
+				if (globalMem[command[2]]>=1) {
 					for (i=0; i<notasks; i++){
 						
 						if (tasks[i].sem==command[2]){
