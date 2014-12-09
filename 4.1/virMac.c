@@ -324,7 +324,7 @@ int main (int argc, char * argv[]){
 	
 	
 	while (1){
-		
+		printf("global:%x,curr: %d\n",globalMem[2],curr);
 		//read command
 		for (i=0;i<3;i++){
 			command[i]=code[(tasks[curr].body)-1][tasks[curr].pc];
@@ -393,6 +393,8 @@ int main (int argc, char * argv[]){
 			case 0x0B:
 				tasks[curr].reg[command[1]]=tasks[curr].reg[command[1]]-tasks[curr].reg[command[2]];
 				progress++;
+				printf("hiiiiiii");
+
 				break;
 			//MUL	
 			case 0x0C:
@@ -487,7 +489,7 @@ int main (int argc, char * argv[]){
 					}
 					
 				}
-				
+				printf("hiiiiiii");
 				progress++;
 				
 				break;
