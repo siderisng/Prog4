@@ -571,6 +571,16 @@ int main (int argc, char * argv[]){
 			break;
 		}
 	}
+	free (sizeOfBody);
+	free (globalMem);
+	for (i=0;i>notasks;i++){
+		free (tasks[i].localMem);
+	}
+	free (tasks);
+	free (forGl);
+	free (localSize);
+	fclose (fp);
+	
 	
 	
 	return (0);
