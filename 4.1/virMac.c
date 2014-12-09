@@ -21,9 +21,9 @@ typedef struct task{  //memory for each task
 	char state[10];  //task state
 	int reg[8];      //task registers (we used 8 reg0 is idx)
 	uint8_t pc;      // next command fouint8_t sem;r task
-	uint8_t sem;     //sem in which task is blocked
+	int sem;     //sem in which task is blocked
 	time_t waket;    // time to wait if sleep is called
-	uint8_t * localMem;  //local mem for each task
+	int * localMem;  //local mem for each task
 }taskT;
 
 int main (int argc, char * argv[]){
@@ -272,7 +272,7 @@ int main (int argc, char * argv[]){
 		tasks[k].sem=-1;
 		tasks[k].waket=-1;
 		
-		if (NULL==(tasks[k].localMem=((uint8_t*)malloc (sizeof(uint8_t)*localSize[(tasks[k].body)])))){
+		if (NULL==(tasks[k].localMem=((int*)malloc (sizeof(int)*localSize[(tasks[k].body)])))){
 			perror("malloc error");
 			return (1);
 		}
