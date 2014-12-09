@@ -329,9 +329,9 @@ int main (int argc, char * argv[]){
 		for (i=0;i<3;i++){
 			command[i]=code[(tasks[curr].body)-1][tasks[curr].pc];
 			tasks[curr].pc++;
-			//printf ("%x ", command[i]);
+			
 		}
-		//printf ("\n");
+		
 		
 		
 		switch(command[0]){
