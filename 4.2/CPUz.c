@@ -6,13 +6,21 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <time.h>
+#include <pthread.h>
 
+#define nofCPUZ 4
 #define turns 10 //commands executed before switching task
 
 uint8_t ** code; // store code here
 uint8_t * sizeOfBody;// size of code for each body
 int curr; //current executed task
 int * globalMem; //global memory
+uint8_t notasks; // number of tasks
+
+
+void *CPU(void * toDo);
+
+
 
 typedef struct task{  //memory for each task
 	uint8_t body;    // body to link task to
@@ -30,18 +38,16 @@ int main (int argc, char * argv[]){
 	
 	srand(time(NULL)); //init time
 	FILE * fp;        //for file reading
-	uint8_t command[3];    //commands to execute
-	int i,k,flag=0, endflag=0;  
+	int i,k,flag=0, thrCheck;  
 	uint8_t magicbeg[4]; //for reading the magicbegz
 	uint8_t globalsize; // number of globals
 	uint8_t numofbodies;// number of bodies
 	uint16_t totalcodesize;// size of code
-	uint8_t notasks; // number of tasks
 	uint8_t codeSize; // size of code for each body
 	uint8_t * localSize; //size of locals
 	uint8_t * forGl; // reads globalinitials and stores them to globalMem(unsigned->signed)
 	taskT * tasks;  //array of tasks
-	
+	pthread_t * cpuThr;
 	
 	
 	//open file
@@ -318,10 +324,54 @@ int main (int argc, char * argv[]){
 	
 	
 	//----------execute tasks---------------------
-	curr=0;
-	int progress=0;
-	k=0;
+	curr=0;//change curr
 	
+	
+	if (NULL==(cpuThr=(pthread_t*)malloc(sizeof(pthread_t)*nofCPUZ))){
+		perror ("Memory allocation for threads");
+	}
+	
+	for (i=0; i<nofCPUZ; i++){
+		thrCheck = pthread_create( &cpuThr[i], NULL, CPU , (void*)tasks);
+		if(thrCheck){
+			fprintf(stderr,"Error - pthread_create() return code: %d\n",thrCheck);
+			exit(EXIT_FAILURE);
+		}
+	}
+	
+	
+	
+	
+	for (i=0; i<nofCPUZ; i++){
+		pthread_join(cpuThr[i], NULL);
+	}
+	
+	
+	
+	
+	free (sizeOfBody);
+	free (globalMem);
+	for (i=0;i>notasks;i++){
+		free (tasks[i].localMem);
+	}
+	free (tasks);
+	free (forGl);
+	free (localSize);
+	fclose (fp);
+	
+	
+	
+	return (0);
+}
+
+void * CPU(void * toDo){
+	taskT * tasks;
+	int progress =0;
+	int flag=0,i;
+	uint8_t command[3];
+	int endflag=0;
+	
+	tasks= (taskT*)toDo;
 	
 	while (1){
 		
@@ -574,17 +624,6 @@ int main (int argc, char * argv[]){
 			break;
 		}
 	}
-	free (sizeOfBody);
-	free (globalMem);
-	for (i=0;i>notasks;i++){
-		free (tasks[i].localMem);
-	}
-	free (tasks);
-	free (forGl);
-	free (localSize);
-	fclose (fp);
-	
-	
-	
-	return (0);
+
+	return (NULL);
 }
