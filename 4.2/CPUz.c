@@ -8,21 +8,24 @@
 #include <time.h>
 #include <pthread.h>
 
-#define nofCPUZ 4
+#define N 4
 #define turns 10 //commands executed before switching task
 
+
+
+//------------variables---------------
 uint8_t ** code; // store code here
 uint8_t * sizeOfBody;// size of code for each body
-int curr; //current executed task
+
 int * globalMem; //global memory
 uint8_t notasks; // number of tasks
+int nofCPUZ = N;
+pthread_mutex_t check;
 
 
-void *CPU(void * toDo);
-
-
-
+//-------------structs-------------
 typedef struct task{  //memory for each task
+	int slaveTO;
 	uint8_t body;    // body to link task to
 	uint8_t arg;     //task arguments
 	int id;          //task id
@@ -34,6 +37,26 @@ typedef struct task{  //memory for each task
 	int * localMem;  //local mem for each task
 }taskT;
 
+taskT * tasks;  //array of tasks
+
+typedef struct cpu{
+	int id;
+	int nofCpuTasks;
+	taskT * cpuTask;
+	pthread_mutex_t locked;
+
+	
+}CPU;
+CPU * unit;
+
+//-----------functions-------------
+
+
+void *CPUact(void * toDo);
+void shareTask ();
+
+
+//------------main------------------
 int main (int argc, char * argv[]){
 	
 	srand(time(NULL)); //init time
@@ -46,7 +69,6 @@ int main (int argc, char * argv[]){
 	uint8_t codeSize; // size of code for each body
 	uint8_t * localSize; //size of locals
 	uint8_t * forGl; // reads globalinitials and stores them to globalMem(unsigned->signed)
-	taskT * tasks;  //array of tasks
 	pthread_t * cpuThr;
 	
 	
@@ -55,6 +77,16 @@ int main (int argc, char * argv[]){
 		printf ("Not enough arguments\n");
 	}
 	fp=fopen(argv[1], "r");
+	printf ("HIIII\n");
+	
+	//-----------init Mutex------------
+	if (pthread_mutex_init(&check, NULL) != 0)
+	{
+		perror ("Mutex error");
+		return 1;
+	}
+	
+	
 	
 	//----------read header file---------------
 	
@@ -62,6 +94,7 @@ int main (int argc, char * argv[]){
 	
 	printf ("MagicBeg: ");
 	//check if magicbeg is right
+	printf ("HIIII\n");
 	for (i=0;i<4;i++){
 		fread (&magicbeg[i],1,1,fp);
 		
@@ -69,7 +102,7 @@ int main (int argc, char * argv[]){
 		
 	}
 	printf("\n");
-	
+	printf ("HIIII\n");
 	
 	if (magicbeg[0]==0xde){
 		if (magicbeg[1]==0xad){
@@ -144,11 +177,24 @@ int main (int argc, char * argv[]){
 		return (1);
 	}	
 	
+	//init cpuz
+	if (NULL==(unit=((CPU*)malloc (sizeof(CPU)*nofCPUZ)))){
+		perror("malloc error");
+		return (1);
+	}
+	for (i=0; i< nofCPUZ; i++){
+		
+		unit[i].nofCpuTasks=0;
+		
+	}
+	
+	
 	//init tasks
 	if (NULL==(tasks=((taskT*)malloc (sizeof(taskT)*notasks)))){
 		perror("malloc error");
 		return (1);
 	}
+	
 	
 	//init array of codes
 	if (NULL==(code=((uint8_t**)malloc (sizeof(uint8_t*)*numofbodies)))){
@@ -284,7 +330,7 @@ int main (int argc, char * argv[]){
 		}
 		
 		//insert argument
-	
+		
 		tasks[k].localMem[(localSize[(tasks[k].body)])]=tasks[k].arg;
 		
 		
@@ -324,7 +370,9 @@ int main (int argc, char * argv[]){
 	
 	
 	//----------execute tasks---------------------
-	curr=0;//change curr
+	
+	
+	shareTask (unit, tasks);
 	
 	
 	if (NULL==(cpuThr=(pthread_t*)malloc(sizeof(pthread_t)*nofCPUZ))){
@@ -332,13 +380,15 @@ int main (int argc, char * argv[]){
 	}
 	
 	for (i=0; i<nofCPUZ; i++){
-		thrCheck = pthread_create( &cpuThr[i], NULL, CPU , (void*)tasks);
+		
+		thrCheck = pthread_create( &cpuThr[i], NULL, CPUact , (void*)unit[i].cpuTask);
 		if(thrCheck){
 			fprintf(stderr,"Error - pthread_create() return code: %d\n",thrCheck);
 			exit(EXIT_FAILURE);
 		}
+		
 	}
-	
+
 	
 	
 	
@@ -349,37 +399,116 @@ int main (int argc, char * argv[]){
 	
 	
 	
-	free (sizeOfBody);
-	free (globalMem);
-	for (i=0;i>notasks;i++){
-		free (tasks[i].localMem);
-	}
-	free (tasks);
-	free (forGl);
-	free (localSize);
-	fclose (fp);
+	//free (sizeOfBody);
+	//free (globalMem);
+	//for (i=0;i>notasks;i++){
+	//	free (tasks[i].localMem);
+	//}
+	//free (tasks);
+	//free (forGl);
+	//free (localSize);
+	//fclose (fp);
 	
 	
 	
 	return (0);
 }
 
-void * CPU(void * toDo){
-	taskT * tasks;
+
+
+
+
+
+
+
+//-------------------Share tasks-------------------
+
+void shareTask(){
+	
+	int toShare;
+	int i, k=0;
+	toShare= notasks;
+	
+	
+	
+	do{
+		
+		for (i=0; i< nofCPUZ; i++){
+			unit[i].nofCpuTasks++;
+			toShare--;
+			
+			if (toShare==0){
+				if ((k==0)&&(i!=(nofCPUZ-1))){
+					nofCPUZ=(i+1);
+				}
+				break;
+				
+			}
+		}
+		k++;
+		
+			
+	}while (toShare>0);
+	
+	
+	
+	for (i=0; i< nofCPUZ; i++){
+
+			if (NULL==(unit[i].cpuTask=(taskT*)malloc(sizeof (taskT)*(unit[i].nofCpuTasks)))){
+				perror ("Memory allocation error");
+				
+			}
+			if (pthread_mutex_init(&unit[i].locked, NULL) != 0)
+			{
+				perror ("Mutex error");
+			}
+			pthread_mutex_lock (&(unit[i].locked));
+			
+	}
+	
+	
+	toShare=0;
+	
+	for (i=0; i< nofCPUZ; i++){
+		
+		for (k=0; k< unit[i].nofCpuTasks; k++){
+			
+			tasks[toShare].slaveTO= i;
+			unit[i].cpuTask[k]= tasks[toShare];
+			
+			toShare++;
+			if (toShare==notasks){break;}
+			
+		}
+		if (toShare==notasks){break;}
+	}
+	
+	
+}
+
+
+
+
+
+//--------------------------PROGRAM EXEC----------------------
+void * CPUact(void * toDo){
+	taskT * taskPre;
 	int progress =0;
 	int flag=0,i;
 	uint8_t command[3];
 	int endflag=0;
+	int curr=0;
+	taskPre= (taskT*)toDo;
+	int cpId; 
 	
-	tasks= (taskT*)toDo;
 	
 	while (1){
 		
 		//read command
 		for (i=0;i<3;i++){
-			command[i]=code[(tasks[curr].body)-1][tasks[curr].pc];
-			tasks[curr].pc++;
-			
+			command[i]=code[(taskPre[curr].body)-1][taskPre[curr].pc];
+			taskPre[curr].pc++;
+		//	printf ("task : %d command:%x\n", taskPre[curr].id,command[i]);
 		}
 		
 		
@@ -389,144 +518,154 @@ void * CPU(void * toDo){
 			// -----------load/store----------------------------
 			//LLOAD
 			case 0x01 :
-				tasks[curr].reg[command[1]]=tasks[curr].localMem[command[2]];
+				taskPre[curr].reg[command[1]]=taskPre[curr].localMem[command[2]];
 				progress++;
 				break;
-			//LLOADi	
+				//LLOADi	
 			case 0x02 :
-				tasks[curr].reg[command[1]]=tasks[curr].localMem[command[2]+tasks[curr].reg[0]];
+				taskPre[curr].reg[command[1]]=taskPre[curr].localMem[command[2]+taskPre[curr].reg[0]];
 				progress++;
 				break;
-			//GLOAD	
+				//GLOAD	
 			case 0x03 :
-				tasks[curr].reg[command[1]]=globalMem[command[2]];
+				
+				pthread_mutex_lock (&check);
+				taskPre[curr].reg[command[1]]=globalMem[command[2]];
 				progress++;
+				pthread_mutex_unlock (&check);
 				break;
-			//GLOADi	
+				//GLOADi	
 			case 0x04 :
-				tasks[curr].reg[command[1]]=globalMem[command[2]+tasks[curr].reg[0]];
+				pthread_mutex_lock (&check);
+				taskPre[curr].reg[command[1]]=globalMem[command[2]+taskPre[curr].reg[0]];
 				progress++;
+				pthread_mutex_unlock (&check);
 				break;
-			//LSTORE	
+				//LSTORE	
 			case 0x05 :
-				tasks[curr].localMem[command[2]]=tasks[curr].reg[command[1]];
+				taskPre[curr].localMem[command[2]]=taskPre[curr].reg[command[1]];
 				progress++;
 				break;
-			//LSTOREi	
+				//LSTOREi	
 			case 0x06 :
-				tasks[curr].localMem[command[2]+tasks[curr].reg[0]]=tasks[curr].reg[command[1]];
+				taskPre[curr].localMem[command[2]+taskPre[curr].reg[0]]=taskPre[curr].reg[command[1]];
 				progress++;
 				break;
-			//GSTORE	
+				//GSTORE	
 			case 0x07 :
-				globalMem[command[2]]=tasks[curr].reg[command[1]];
+				pthread_mutex_lock (&check);
+				globalMem[command[2]]=taskPre[curr].reg[command[1]];
 				progress++;
+				pthread_mutex_unlock (&check);
 				break;
-			//GSTOREi	
+				//GSTOREi	
 			case 0x08 :
-				globalMem[command[2]+tasks[curr].reg[0]]=tasks[curr].reg[command[1]];
+				pthread_mutex_lock (&check);
+				globalMem[command[2]+taskPre[curr].reg[0]]=taskPre[curr].reg[command[1]];
 				progress++;
+				pthread_mutex_unlock (&check);
 				break;
 				
 				//-----------registers--------------------
-			
-			//SET	
+				
+				//SET	
 			case 0x09:
-				tasks[curr].reg[command[1]]=command[2];
+				taskPre[curr].reg[command[1]]=command[2];
 				progress++;
 				break;
-			//ADD	
+				//ADD	
 			case 0x0A:
-				tasks[curr].reg[command[1]]=tasks[curr].reg[command[1]]+tasks[curr].reg[command[2]];
+				taskPre[curr].reg[command[1]]=taskPre[curr].reg[command[1]]+taskPre[curr].reg[command[2]];
 				progress++;
 				break;
-			//SUB	
+				//SUB	
 			case 0x0B:
-				tasks[curr].reg[command[1]]=tasks[curr].reg[command[1]]-tasks[curr].reg[command[2]];
+				taskPre[curr].reg[command[1]]=taskPre[curr].reg[command[1]]-taskPre[curr].reg[command[2]];
 				progress++;
 				
-
+				
 				break;
-			//MUL	
+				//MUL	
 			case 0x0C:
-				tasks[curr].reg[command[1]]=tasks[curr].reg[command[1]]*tasks[curr].reg[command[2]];
+				taskPre[curr].reg[command[1]]=taskPre[curr].reg[command[1]]*taskPre[curr].reg[command[2]];
 				progress++;
 				break;
-			//DIV	
+				//DIV	
 			case 0x0D:
-				tasks[curr].reg[command[1]]=tasks[curr].reg[command[1]]/tasks[curr].reg[command[2]];
+				taskPre[curr].reg[command[1]]=taskPre[curr].reg[command[1]]/taskPre[curr].reg[command[2]];
 				progress++;
 				break;
-			//MOD	
+				//MOD	
 			case 0x0E:
-				tasks[curr].reg[command[1]]=tasks[curr].reg[command[1]]%tasks[curr].reg[command[2]];
+				taskPre[curr].reg[command[1]]=taskPre[curr].reg[command[1]]%taskPre[curr].reg[command[2]];
 				progress++;
 				break;
 				
 				// --------- branches---------------------
-			//BRGZ	
+				//BRGZ	
 			case 0x0F:
-				if (tasks[curr].reg[command[1]]>0){
-					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeOfBody[((tasks[curr].body)-1)]);
+				if (taskPre[curr].reg[command[1]]>0){
+					taskPre[curr].pc=(taskPre[curr].pc+command[2])%(sizeOfBody[((taskPre[curr].body)-1)]);
 				}
 				progress++;
 				
 				break;
-			//BRGEZ	
+				//BRGEZ	
 			case 0x10:
-				if (tasks[curr].reg[command[1]]>=0){
-					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeOfBody[((tasks[curr].body)-1)]);
+				if (taskPre[curr].reg[command[1]]>=0){
+					taskPre[curr].pc=(taskPre[curr].pc+command[2])%(sizeOfBody[((taskPre[curr].body)-1)]);
 				}
 				progress++;
 				
 				break;
-			//BRLZ	
+				//BRLZ	
 			case 0x11:
-				if (tasks[curr].reg[command[1]]<0){
-					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeOfBody[((tasks[curr].body)-1)]);
+				if (taskPre[curr].reg[command[1]]<0){
+					taskPre[curr].pc=(taskPre[curr].pc+command[2])%(sizeOfBody[((taskPre[curr].body)-1)]);
 				}
 				progress++;
 				
 				break;
-			//BRLEZ	
+				//BRLEZ	
 			case 0x12:
-				if (tasks[curr].reg[command[1]]<=0){
-					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeOfBody[((tasks[curr].body)-1)]);
+				if (taskPre[curr].reg[command[1]]<=0){
+					taskPre[curr].pc=(taskPre[curr].pc+command[2])%(sizeOfBody[((taskPre[curr].body)-1)]);
 				}
 				progress++;
 				
 				break;
-			//BREZ	
+				//BREZ	
 			case 0x13:
-				if (tasks[curr].reg[command[1]]==0){
-					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeOfBody[((tasks[curr].body)-1)]);
+				if (taskPre[curr].reg[command[1]]==0){
+					taskPre[curr].pc=(taskPre[curr].pc+command[2])%(sizeOfBody[((taskPre[curr].body)-1)]);
 				}
 				progress++;
 				
 				break;
-			//BRA	
+				//BRA	
 			case 0x14:
-				tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeOfBody[((tasks[curr].body)-1)]);
+				taskPre[curr].pc=(taskPre[curr].pc+command[2])%(sizeOfBody[((taskPre[curr].body)-1)]);
 				progress++;
 				
 				break;
 				
 				// ----------- synch ------------------
-			//DOWN	
+				//DOWN	
 			case 0x15:
-				
+				pthread_mutex_lock (&check);
 				globalMem[command[2]]--;
 				progress++;
 				
 				if (globalMem[command[2]]<0) {
-					strcpy(tasks[curr].state,"BLOCKED");
-					tasks[curr].sem=command[2];
+					strcpy(taskPre[curr].state,"BLOCKED");
+					taskPre[curr].sem=command[2];
 					flag=1;
 				}
-				
+				pthread_mutex_unlock (&check);
 				break;
-			//UP	
+				//UP	
 			case 0x16:
+				pthread_mutex_lock (&check);
 				globalMem[command[2]]++;
 				
 				if (globalMem[command[2]]<=0) {
@@ -542,12 +681,12 @@ void * CPU(void * toDo){
 				}
 				
 				progress++;
-				
+				pthread_mutex_unlock (&check);
 				break;
 				
 				//----------------varia--------------
 				
-			//YIELD	
+				//YIELD	
 			case 0x17:
 				
 				progress++;
@@ -555,26 +694,27 @@ void * CPU(void * toDo){
 				flag=1;
 				
 				break;
-			
-			//SLEEP	
+				
+				//SLEEP	
 			case 0x18:
 				
 				progress++;
 				strcpy(tasks[i].state,"SLEEPING");
 				
-				tasks[curr].waket= command[2]+ time(NULL);
+				taskPre[curr].waket= command[2]+ time(NULL);
 				
 				break;
-			//PRINT	
+				//PRINT	
 			case 0x19:
+				pthread_mutex_lock (&check);
 				progress++;
-				printf ("%d:%d\n", tasks[curr].id, globalMem[command[2]]);
-				
+				printf ("%d:%d\n", taskPre[curr].id, globalMem[command[2]]);
+				pthread_mutex_unlock (&check);
 				break;
-			//EXIT	
+				//EXIT	
 			case 0x1a:
 				
-				strcpy(tasks[curr].state,"STOPPED");
+				strcpy(taskPre[curr].state,"STOPPED");
 				flag=1;
 				
 				break;
@@ -583,7 +723,7 @@ void * CPU(void * toDo){
 		//--------end of case-------------
 		
 		
-		//check if it is time to change task
+		//check if it is time to change task ATTENTION ATTENTION
 		if ((progress==turns)||(flag==1)){
 			
 			progress=0;
@@ -608,7 +748,7 @@ void * CPU(void * toDo){
 			}
 			
 			//if there is not such task terminate program
-			if ((i==notasks)&&((!strcmp(tasks[curr].state,"BLOCKED"))||(!strcmp(tasks[curr].state,"STOPPED")))){
+			if ((i==notasks)&&((!strcmp(taskPre[curr].state,"BLOCKED"))||(!strcmp(taskPre[curr].state,"STOPPED")))){
 				
 				endflag=1;
 			}//ele change task
@@ -616,14 +756,17 @@ void * CPU(void * toDo){
 				curr=i;
 			}
 			flag=0;
-		}
+		}//ATTENTION ATTENTION
 		
 		//if there is not available task terminate
 		if (endflag==1){
-			printf ("End of programm\n");
-			break;
+			
+			cpId = taskPre[curr].slaveTO;
+			
+			
+			pthread_mutex_lock (&unit[cpId].locked);
 		}
 	}
-
+	
 	return (NULL);
 }
