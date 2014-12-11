@@ -13,18 +13,21 @@
 
 
 
+
 //------------variables---------------
 uint8_t ** code; // store code here
 uint8_t * sizeOfBody;// size of code for each body
-
+uint8_t globalsize; // number of globals
 int * globalMem; //global memory
 uint8_t notasks; // number of tasks
 int nofCPUZ = N;
-pthread_mutex_t check;
-
-
+pthread_mutex_t check ,mon;
+char * toPrint;
+int nextCurr;
+int *blockedFlag;
 //-------------structs-------------
 typedef struct task{  //memory for each task
+	int anothID;
 	int slaveTO;
 	uint8_t body;    // body to link task to
 	uint8_t arg;     //task arguments
@@ -63,7 +66,7 @@ int main (int argc, char * argv[]){
 	FILE * fp;        //for file reading
 	int i,k,flag=0, thrCheck;  
 	uint8_t magicbeg[4]; //for reading the magicbegz
-	uint8_t globalsize; // number of globals
+	
 	uint8_t numofbodies;// number of bodies
 	uint16_t totalcodesize;// size of code
 	uint8_t codeSize; // size of code for each body
@@ -86,7 +89,11 @@ int main (int argc, char * argv[]){
 		return 1;
 	}
 	
-	
+	if (pthread_mutex_init(&mon, NULL) != 0)
+	{
+		perror ("Mutex error");
+		return 1;
+	}
 	
 	//----------read header file---------------
 	
@@ -94,7 +101,7 @@ int main (int argc, char * argv[]){
 	
 	printf ("MagicBeg: ");
 	//check if magicbeg is right
-	printf ("HIIII\n");
+	
 	for (i=0;i<4;i++){
 		fread (&magicbeg[i],1,1,fp);
 		
@@ -154,6 +161,11 @@ int main (int argc, char * argv[]){
 	//---------initialize globals------------
 	
 	//init global memory
+	if (NULL==(toPrint=((char*)malloc (sizeof(char)*globalsize)))){
+		perror("malloc error");
+		return (1);
+	}
+	
 	if (NULL==(globalMem=((int*)malloc (sizeof(int)*globalsize)))){
 		perror("malloc error");
 		return (1);
@@ -451,9 +463,14 @@ void shareTask(){
 	}while (toShare>0);
 	
 	
-	
+	if (NULL==(blockedFlag=(int*)malloc(sizeof (int)*nofCPUZ))){
+				perror ("Memory allocation error");
+				
+			}
 	for (i=0; i< nofCPUZ; i++){
-
+			
+		
+		
 			if (NULL==(unit[i].cpuTask=(taskT*)malloc(sizeof (taskT)*(unit[i].nofCpuTasks)))){
 				perror ("Memory allocation error");
 				
@@ -463,7 +480,7 @@ void shareTask(){
 				perror ("Mutex error");
 			}
 			pthread_mutex_lock (&(unit[i].locked));
-			
+			blockedFlag[i]=0;
 	}
 	
 	
@@ -499,27 +516,30 @@ void * CPUact(void * toDo){
 	int endflag=0;
 	int curr=0;
 	taskPre= (taskT*)toDo;
-	int cpId; 
 	
 	
-	while (1){
+	
+	while (1){	
+		
 		
 		//read command
 		for (i=0;i<3;i++){
 			command[i]=code[(taskPre[curr].body)-1][taskPre[curr].pc];
 			taskPre[curr].pc++;
-		//	printf ("task : %d command:%x\n", taskPre[curr].id,command[i]);
+			printf ("task : %d command:%x\n", taskPre[curr].id,command[i]);
 		}
 		
-		
+		printf ("\n");
 		
 		switch(command[0]){
 			
 			// -----------load/store----------------------------
 			//LLOAD
 			case 0x01 :
+					pthread_mutex_lock (&check);
 				taskPre[curr].reg[command[1]]=taskPre[curr].localMem[command[2]];
 				progress++;
+					pthread_mutex_unlock (&check);
 				break;
 				//LLOADi	
 			case 0x02 :
@@ -543,13 +563,17 @@ void * CPUact(void * toDo){
 				break;
 				//LSTORE	
 			case 0x05 :
+					pthread_mutex_unlock (&check);
 				taskPre[curr].localMem[command[2]]=taskPre[curr].reg[command[1]];
 				progress++;
+					pthread_mutex_lock (&check);
 				break;
 				//LSTOREi	
 			case 0x06 :
+					pthread_mutex_lock (&check);
 				taskPre[curr].localMem[command[2]+taskPre[curr].reg[0]]=taskPre[curr].reg[command[1]];
 				progress++;
+					pthread_mutex_unlock (&check);
 				break;
 				//GSTORE	
 			case 0x07 :
@@ -570,87 +594,107 @@ void * CPUact(void * toDo){
 				
 				//SET	
 			case 0x09:
+					pthread_mutex_lock (&check);
 				taskPre[curr].reg[command[1]]=command[2];
 				progress++;
+					pthread_mutex_unlock (&check);
 				break;
 				//ADD	
 			case 0x0A:
+					pthread_mutex_lock (&check);
 				taskPre[curr].reg[command[1]]=taskPre[curr].reg[command[1]]+taskPre[curr].reg[command[2]];
 				progress++;
+					pthread_mutex_unlock (&check);
 				break;
 				//SUB	
 			case 0x0B:
+					pthread_mutex_lock (&check);
 				taskPre[curr].reg[command[1]]=taskPre[curr].reg[command[1]]-taskPre[curr].reg[command[2]];
 				progress++;
-				
+					pthread_mutex_unlock (&check);
 				
 				break;
 				//MUL	
 			case 0x0C:
+					pthread_mutex_lock (&check);
 				taskPre[curr].reg[command[1]]=taskPre[curr].reg[command[1]]*taskPre[curr].reg[command[2]];
 				progress++;
+					pthread_mutex_unlock (&check);
 				break;
+				
 				//DIV	
 			case 0x0D:
+					pthread_mutex_lock (&check);
 				taskPre[curr].reg[command[1]]=taskPre[curr].reg[command[1]]/taskPre[curr].reg[command[2]];
 				progress++;
+					pthread_mutex_unlock (&check);
 				break;
+				
 				//MOD	
 			case 0x0E:
+					pthread_mutex_lock (&check);
 				taskPre[curr].reg[command[1]]=taskPre[curr].reg[command[1]]%taskPre[curr].reg[command[2]];
 				progress++;
+					pthread_mutex_unlock (&check);
 				break;
 				
 				// --------- branches---------------------
 				//BRGZ	
 			case 0x0F:
+					pthread_mutex_lock (&check);
 				if (taskPre[curr].reg[command[1]]>0){
 					taskPre[curr].pc=(taskPre[curr].pc+command[2])%(sizeOfBody[((taskPre[curr].body)-1)]);
 				}
 				progress++;
-				
+					pthread_mutex_unlock (&check);
 				break;
 				//BRGEZ	
 			case 0x10:
+					pthread_mutex_lock (&check);
 				if (taskPre[curr].reg[command[1]]>=0){
 					taskPre[curr].pc=(taskPre[curr].pc+command[2])%(sizeOfBody[((taskPre[curr].body)-1)]);
 				}
 				progress++;
+					pthread_mutex_unlock (&check);
 				
 				break;
 				//BRLZ	
 			case 0x11:
+					pthread_mutex_lock (&check);
 				if (taskPre[curr].reg[command[1]]<0){
 					taskPre[curr].pc=(taskPre[curr].pc+command[2])%(sizeOfBody[((taskPre[curr].body)-1)]);
 				}
 				progress++;
-				
+					pthread_mutex_unlock (&check);
 				break;
 				//BRLEZ	
 			case 0x12:
+					pthread_mutex_lock (&check);
 				if (taskPre[curr].reg[command[1]]<=0){
 					taskPre[curr].pc=(taskPre[curr].pc+command[2])%(sizeOfBody[((taskPre[curr].body)-1)]);
 				}
 				progress++;
-				
+					pthread_mutex_unlock (&check);
 				break;
 				//BREZ	
 			case 0x13:
+					pthread_mutex_lock (&check);
 				if (taskPre[curr].reg[command[1]]==0){
 					taskPre[curr].pc=(taskPre[curr].pc+command[2])%(sizeOfBody[((taskPre[curr].body)-1)]);
 				}
 				progress++;
-				
+					pthread_mutex_unlock (&check);
 				break;
 				//BRA	
 			case 0x14:
+				pthread_mutex_lock (&check);
 				taskPre[curr].pc=(taskPre[curr].pc+command[2])%(sizeOfBody[((taskPre[curr].body)-1)]);
 				progress++;
-				
+				pthread_mutex_unlock (&check);
 				break;
 				
 				// ----------- synch ------------------
-				//DOWN	
+			//DOWN	
 			case 0x15:
 				pthread_mutex_lock (&check);
 				globalMem[command[2]]--;
@@ -658,22 +702,38 @@ void * CPUact(void * toDo){
 				
 				if (globalMem[command[2]]<0) {
 					strcpy(taskPre[curr].state,"BLOCKED");
-					taskPre[curr].sem=command[2];
+					
+					tasks[taskPre[curr].id].sem=command[2];
+					
 					flag=1;
+
 				}
+				
+				
+				
 				pthread_mutex_unlock (&check);
 				break;
-				//UP	
+				
+				
+			//UP	
 			case 0x16:
 				pthread_mutex_lock (&check);
 				globalMem[command[2]]++;
 				
 				if (globalMem[command[2]]<=0) {
 					for (i=0; i<notasks; i++){
+
 						
 						if (tasks[i].sem==command[2]){
 							strcpy(tasks[i].state,"READY");
 							tasks[i].sem=-1;
+							if ((tasks[i].slaveTO!=taskPre[curr].slaveTO)&&(blockedFlag[tasks[i].slaveTO]!=0)){
+								
+
+								blockedFlag[tasks[i].slaveTO]=0;
+								nextCurr =tasks[i].anothID;
+								pthread_mutex_unlock (&unit[tasks[i].slaveTO].locked);
+							}
 							break;
 						}
 					}
@@ -697,14 +757,14 @@ void * CPUact(void * toDo){
 				
 				//SLEEP	
 			case 0x18:
-				
+					pthread_mutex_lock (&check);
 				progress++;
-				strcpy(tasks[i].state,"SLEEPING");
+				strcpy(taskPre[curr].state,"SLEEPING");
 				
 				taskPre[curr].waket= command[2]+ time(NULL);
-				
+					pthread_mutex_unlock (&check);
 				break;
-				//PRINT	
+				//PRINT INTEGER	
 			case 0x19:
 				pthread_mutex_lock (&check);
 				progress++;
@@ -718,54 +778,83 @@ void * CPUact(void * toDo){
 				flag=1;
 				
 				break;
+			//PRINT STRING
+			case 0x1b:
+				
+				pthread_mutex_lock (&check);
+				progress++;
+				for (i=command[2]; i< globalsize; i++){
+					if (globalMem[i]==0){break;}
+					
+					toPrint[i] = globalMem[command[2]+i];
+					
+					
+				}
+				toPrint[i]='\0';
+				
+				printf ("%d:%s\n", taskPre[curr].id, toPrint);
+				pthread_mutex_unlock (&check);
+				break;
 				
 		}
 		//--------end of case-------------
 		
 		
-		//check if it is time to change task ATTENTION ATTENTION
+			
+		pthread_mutex_lock (&check);
+		//check if it is time to change task
 		if ((progress==turns)||(flag==1)){
 			
 			progress=0;
 			
 			//find next task which is not blocked
-			for (i=0;i<notasks;i++){
+			
+			for (i=0;i<unit[taskPre[curr].slaveTO].nofCpuTasks;i++){
 				
-				if ((i!=curr)&&(strcmp(tasks[i].state,"BLOCKED"))&&(strcmp(tasks[i].state,"STOPPED"))){
+				if ((i!=curr)&&(strcmp(taskPre[i].state,"BLOCKED"))&&(strcmp(taskPre[i].state,"STOPPED"))){
 					
-					if (((!strcmp(tasks[i].state,"SLEEPING"))&&(time(NULL)>tasks[i].waket))){
+					if (((!strcmp(taskPre[i].state,"SLEEPING"))&&(time(NULL)>taskPre[i].waket))){
 						
-						strcpy (tasks[i].state,"READY");
-						tasks[i].waket=0;
+						strcpy (taskPre[i].state,"READY");
+						taskPre[i].waket=0;
 						break;
 					}
-					else if ((strcmp(tasks[i].state,"SLEEPING"))){
+					else if ((strcmp(taskPre[i].state,"SLEEPING"))){
 						
 						break;
 					}
 				}
 				
 			}
+				
 			
 			//if there is not such task terminate program
-			if ((i==notasks)&&((!strcmp(taskPre[curr].state,"BLOCKED"))||(!strcmp(taskPre[curr].state,"STOPPED")))){
+			if ((i==unit[taskPre[curr].slaveTO].nofCpuTasks)&&((!strcmp(taskPre[curr].state,"BLOCKED"))||(!strcmp(taskPre[curr].state,"STOPPED")))){
 				
 				endflag=1;
 			}//ele change task
-			else if (i!=notasks){
+			else if ((i==unit[taskPre[curr].slaveTO].nofCpuTasks)&&((strcmp(taskPre[curr].state,"BLOCKED"))&&(strcmp(taskPre[curr].state,"STOPPED")))){
+
+			}
+			else {
 				curr=i;
 			}
 			flag=0;
-		}//ATTENTION ATTENTION
-		
+		}
+		pthread_mutex_unlock (&check);
 		//if there is not available task terminate
 		if (endflag==1){
-			
-			cpId = taskPre[curr].slaveTO;
-			
-			
-			pthread_mutex_lock (&unit[cpId].locked);
+		
+			blockedFlag[taskPre[curr].slaveTO]=1;
+			taskPre[curr].anothID=curr;
+			pthread_mutex_lock (&unit[taskPre[curr].slaveTO].locked);
+			printf ("HIIII\n");
+			endflag=0;
+			curr= nextCurr;
+			progress=0;
 		}
+
+	
 	}
 	
 	return (NULL);
