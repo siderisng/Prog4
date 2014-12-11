@@ -431,7 +431,7 @@ int main (int argc, char * argv[]){
 			//BRGZ	
 			case 0x0F:
 				if (tasks[curr].reg[command[1]]>0){
-					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeOfBody[((tasks[curr].body)-1)]);
+					tasks[curr].pc=(tasks[curr].pc+(command[2]*3))%(sizeOfBody[((tasks[curr].body)-1)]);
 				}
 				progress++;
 				
@@ -439,7 +439,7 @@ int main (int argc, char * argv[]){
 			//BRGEZ	
 			case 0x10:
 				if (tasks[curr].reg[command[1]]>=0){
-					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeOfBody[((tasks[curr].body)-1)]);
+					tasks[curr].pc=(tasks[curr].pc+(command[2]*3))%(sizeOfBody[((tasks[curr].body)-1)]);
 				}
 				progress++;
 				
@@ -447,7 +447,7 @@ int main (int argc, char * argv[]){
 			//BRLZ	
 			case 0x11:
 				if (tasks[curr].reg[command[1]]<0){
-					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeOfBody[((tasks[curr].body)-1)]);
+					tasks[curr].pc=(tasks[curr].pc+(command[2]*3))%(sizeOfBody[((tasks[curr].body)-1)]);
 				}
 				progress++;
 				
@@ -455,7 +455,7 @@ int main (int argc, char * argv[]){
 			//BRLEZ	
 			case 0x12:
 				if (tasks[curr].reg[command[1]]<=0){
-					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeOfBody[((tasks[curr].body)-1)]);
+					tasks[curr].pc=(tasks[curr].pc+(command[2]*3))%(sizeOfBody[((tasks[curr].body)-1)]);
 				}
 				progress++;
 				
@@ -463,14 +463,14 @@ int main (int argc, char * argv[]){
 			//BREZ	
 			case 0x13:
 				if (tasks[curr].reg[command[1]]==0){
-					tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeOfBody[((tasks[curr].body)-1)]);
+					tasks[curr].pc=(tasks[curr].pc+(command[2]*3))%(sizeOfBody[((tasks[curr].body)-1)]);
 				}
 				progress++;
 				
 				break;
 			//BRA	
 			case 0x14:
-				tasks[curr].pc=(tasks[curr].pc+command[2])%(sizeOfBody[((tasks[curr].body)-1)]);
+				tasks[curr].pc=(tasks[curr].pc+(command[2]*3))%(sizeOfBody[((tasks[curr].body)-1)]);
 				progress++;
 				
 				break;
