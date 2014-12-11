@@ -9,7 +9,7 @@
 #include <pthread.h>
 
 #define N 4
-#define turns 10 //commands executed before switching task
+#define turns 4 //commands executed before switching task
 
 
 
@@ -80,7 +80,7 @@ int main (int argc, char * argv[]){
 		printf ("Not enough arguments\n");
 	}
 	fp=fopen(argv[1], "r");
-	printf ("HIIII\n");
+	
 	
 	//-----------init Mutex------------
 	if (pthread_mutex_init(&check, NULL) != 0)
@@ -109,7 +109,7 @@ int main (int argc, char * argv[]){
 		
 	}
 	printf("\n");
-	printf ("HIIII\n");
+	
 	
 	if (magicbeg[0]==0xde){
 		if (magicbeg[1]==0xad){
@@ -724,14 +724,15 @@ void * CPUact(void * toDo){
 					for (i=0; i<notasks; i++){
 
 						
+
 						if (tasks[i].sem==command[2]){
 							strcpy(tasks[i].state,"READY");
 							tasks[i].sem=-1;
-							if ((tasks[i].slaveTO!=taskPre[curr].slaveTO)&&(blockedFlag[tasks[i].slaveTO]!=0)){
-								
+							
+							if (blockedFlag[tasks[i].slaveTO]!=0){
 
 								blockedFlag[tasks[i].slaveTO]=0;
-								nextCurr =tasks[i].anothID;
+								nextCurr =tasks[i].id;
 								pthread_mutex_unlock (&unit[tasks[i].slaveTO].locked);
 							}
 							break;
@@ -739,7 +740,7 @@ void * CPUact(void * toDo){
 					}
 					
 				}
-				
+				printf ("Im to blame task up:%d\n",tasks[i].id);
 				progress++;
 				pthread_mutex_unlock (&check);
 				break;
@@ -784,9 +785,9 @@ void * CPUact(void * toDo){
 				pthread_mutex_lock (&check);
 				progress++;
 				for (i=command[2]; i< globalsize; i++){
-					if (globalMem[i]==0){break;}
+					if ((globalMem[command[2]+i])==0){break;}
 					
-					toPrint[i] = globalMem[command[2]+i];
+					toPrint[i%globalsize] = globalMem[command[2]+i];
 					
 					
 				}
@@ -833,10 +834,9 @@ void * CPUact(void * toDo){
 				
 				endflag=1;
 			}//ele change task
-			else if ((i==unit[taskPre[curr].slaveTO].nofCpuTasks)&&((strcmp(taskPre[curr].state,"BLOCKED"))&&(strcmp(taskPre[curr].state,"STOPPED")))){
-
-			}
+			else if ((i==unit[taskPre[curr].slaveTO].nofCpuTasks)&&((!strcmp(taskPre[curr].state,"READY"))));
 			else {
+				printf ("HIII\n");
 				curr=i;
 			}
 			flag=0;
@@ -844,17 +844,23 @@ void * CPUact(void * toDo){
 		pthread_mutex_unlock (&check);
 		//if there is not available task terminate
 		if (endflag==1){
-		
 			blockedFlag[taskPre[curr].slaveTO]=1;
-			taskPre[curr].anothID=curr;
+			
 			pthread_mutex_lock (&unit[taskPre[curr].slaveTO].locked);
-			printf ("HIIII\n");
+		
 			endflag=0;
-			curr= nextCurr;
+			for (i=0; i<unit[taskPre[curr].slaveTO].nofCpuTasks; i++){
+				printf ("unlocked\n");
+				if (taskPre[i].id==nextCurr){
+					printf ("alright %d\n",taskPre[i].id);
+					curr=i;
+					break;
+				}
+			}
 			progress=0;
 		}
 
-	
+	printf ("task: %d, state : %s\n", taskPre[curr].id,taskPre[curr].state);
 	}
 	
 	return (NULL);
