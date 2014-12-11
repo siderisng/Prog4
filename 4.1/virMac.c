@@ -547,7 +547,7 @@ int main (int argc, char * argv[]){
 			//PRINT STRING
 			case 0x1b:
 				k=0;
-				pthread_mutex_lock (&check);
+				
 				progress++;
 				for (i=command[2]; i< globalsize; i++){
 					if (globalMem[i]==0){break;}
@@ -560,7 +560,7 @@ int main (int argc, char * argv[]){
 				
 				//printf("Task %d:",tasks[curr].id);
 				printf ("%s\n", toPrint);
-				pthread_mutex_unlock (&check);
+				
 				break;
 				
 		
