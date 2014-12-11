@@ -13,6 +13,9 @@ uint8_t ** code; // store code here
 uint8_t * sizeOfBody;// size of code for each body
 int curr; //current executed task
 int * globalMem; //global memory
+char * toPrint;
+pthread_mutex_t check;
+
 
 typedef struct task{  //memory for each task
 	uint8_t body;    // body to link task to
@@ -115,6 +118,13 @@ int main (int argc, char * argv[]){
 	//---------initialize globals------------
 	
 	//init global memory
+	
+	//init global memory
+	if (NULL==(toPrint=((char*)malloc (sizeof(char)*globalsize)))){
+		perror("malloc error");
+		return (1);
+	}
+	
 	if (NULL==(globalMem=((int*)malloc (sizeof(int)*globalsize)))){
 		perror("malloc error");
 		return (1);
@@ -156,6 +166,10 @@ int main (int argc, char * argv[]){
 		return (1);
 	}
 	
+	if (pthread_mutex_init(&check, NULL) != 0)
+	{
+		perror ("Mutex error");
+	}
 	
 	//-----------Bodies-----------------
 	
@@ -515,10 +529,11 @@ int main (int argc, char * argv[]){
 				tasks[curr].waket= command[2]+ time(NULL);
 				
 				break;
-			//PRINT	
+			//PRINT INTEGER
 			case 0x19:
 				progress++;
-				printf ("%d:%d\n", tasks[curr].id, globalMem[command[2]]);
+				//printf("Task %d:",tasks[curr].id);
+				printf ("%d\n", globalMem[command[2]]);
 				
 				break;
 			//EXIT	
@@ -529,6 +544,26 @@ int main (int argc, char * argv[]){
 				
 				break;
 				
+			//PRINT STRING
+			case 0x1b:
+				k=0;
+				pthread_mutex_lock (&check);
+				progress++;
+				for (i=command[2]; i< globalsize; i++){
+					if (globalMem[i]==0){break;}
+					
+					toPrint[k] = globalMem[i];
+					k++;
+					
+				}
+				toPrint[i]='\0';
+				
+				//printf("Task %d:",tasks[curr].id);
+				printf ("%s\n", toPrint);
+				pthread_mutex_unlock (&check);
+				break;
+				
+		
 		}
 		//--------end of case-------------
 		
