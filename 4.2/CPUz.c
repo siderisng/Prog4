@@ -8,7 +8,7 @@
 #include <time.h>
 #include <pthread.h>
 
-#define N 4
+#define N 4  //number of Cpuz
 #define turns 4 //commands executed before switching task
 
 
@@ -20,7 +20,7 @@ uint8_t * sizeOfBody;// size of code for each body
 uint8_t globalsize; // number of globals
 int * globalMem; //global memory
 uint8_t notasks; // number of tasks
-int nofCPUZ = N; //number of cpuz
+int nofCPUZ = N; //number of active cpuz
 pthread_mutex_t check; //for safe global memory handling
 int terminateFlag=0, reallyTerminate=0; //for program termination
 int nextCurr; //task to execute after unblocking a cpu
@@ -514,7 +514,7 @@ void shareTask(){
 	int toShare;//counter used for sharing tasks
 	int i, j, k=0;//counters
 	toShare= notasks;
-	
+	int switchS=0;
 	
 	//find number of tasks each cpu will execute
 	do{
@@ -566,14 +566,28 @@ void shareTask(){
 	k=0;
 	j=0;
 	while (k< notasks){
-			
-		for (i=0; i< nofCPUZ; i++){
-			
-			tasks[k].slaveTO=i;
-			unit[i].slaveTasks[j] = k; 
-			k++;
-			
-			if (k==notasks){break;}
+		
+		if (switchS==0){
+			for (i=0; i< nofCPUZ; i++){
+				
+				tasks[k].slaveTO=i;
+				unit[i].slaveTasks[j] = k; 
+				k++;
+				
+				if (k==notasks){break;}
+			}
+			switchS=1;
+		}
+		else{
+			for (i=(nofCPUZ-1); i>=0 ; i--){
+				
+				tasks[k].slaveTO=i;
+				unit[i].slaveTasks[j] = k; 
+				k++;
+				
+				if (k==notasks){break;}
+			}
+			switchS=0;
 		}
 		j++;
 	}

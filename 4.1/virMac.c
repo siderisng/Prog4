@@ -14,7 +14,6 @@ uint8_t * sizeOfBody;// size of code for each body
 int curr; //current executed task
 int * globalMem; //global memory
 char * toPrint;
-pthread_mutex_t check;
 
 
 typedef struct task{  //memory for each task
@@ -51,7 +50,16 @@ int main (int argc, char * argv[]){
 	if (argc < 2){ 
 		printf ("Not enough arguments\n");
 	}
-	fp=fopen(argv[1], "r");
+	
+	if( access( argv[1], R_OK ) != -1 ) {
+    fp=fopen(argv[1], "r");
+	} else {
+    perror ("Please, try again");
+	return (1);
+	}
+	
+	
+	
 	
 	//----------read header file---------------
 	
@@ -166,10 +174,6 @@ int main (int argc, char * argv[]){
 		return (1);
 	}
 	
-	if (pthread_mutex_init(&check, NULL) != 0)
-	{
-		perror ("Mutex error");
-	}
 	
 	//-----------Bodies-----------------
 	
@@ -596,7 +600,7 @@ int main (int argc, char * argv[]){
 			if ((i==notasks)&&((!strcmp(tasks[curr].state,"BLOCKED"))||(!strcmp(tasks[curr].state,"STOPPED")))){
 				
 				endflag=1;
-			}//ele change task
+			}else if ((i==notasks)&&((!strcmp(tasks[curr].state,"READY"))));
 			else if (i!=notasks){
 				curr=i;
 			}
