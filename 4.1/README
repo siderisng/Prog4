@@ -1,0 +1,91 @@
+//---------factorial----------------
+global mem:
+0=1, 1=0;
+
+gload reg3 0
+set reg1 5      //number to find the factorial of
+gstore reg1 1
+gload reg2 0
+mul reg3 reg1
+sub reg1 reg2
+brez reg1 1
+bra reg1 10
+gstore reg3 0
+gload reg1 1
+printstring 00 02
+printint 00 01
+printint 00 00
+exit 0 0
+
+
+//------------prime--------------------
+global mem:
+0=1, 1=0, 2=1;
+
+
+body 0:
+
+down mutex1 (0)
+gload reg1 2
+set reg2 1
+add reg1 reg2
+gstore reg1 2
+up mutex2 (1)
+bra reg1 1
+exit 
+
+body 1:
+
+set reg1 73   //number to find if prime or not
+down mutex2(1)
+gload reg2 2
+set reg3 0
+add reg3 reg1
+mod reg3 reg2 
+sub reg2 reg1
+brez reg3 2
+up mutex1(0)
+bra reg2 3
+printint 02
+exit 
+
+
+//----------train-------------------------
+
+global memory :
+0=0 , 1=1, 2=0, 3=0;
+
+body 0:
+
+down 02
+set reg1 0
+up 03
+bra reg1 1
+exit
+
+body 1:
+
+down 01
+gload reg1 0
+set reg2 1
+add reg1 2 
+set reg3 5      //train capacity
+sub reg3 1
+brgz reg3 1 
+up 02
+gstore reg1 0
+printint 00
+brez reg3 1
+up 01
+down 03
+gload reg1 0
+set reg2 1 
+sub reg1 2
+gstore reg1 0 
+printint 00
+brez reg1 2
+up 03
+exit
+up 01
+exit
+
