@@ -8,8 +8,8 @@
 #include <time.h>
 #include <pthread.h>
 
-#define N 4  //number of Cpuz
-#define turns 4 //commands executed before switching task
+#define N 2  //number of Cpuz
+#define turns 6 //commands executed before switching task
 
 
 
@@ -362,14 +362,14 @@ int main (int argc, char * argv[]){
 		tasks[k].waket=-1;
 		taskComp[k]=bodyComp[(tasks[k].body-1)];
 	
-		if (NULL==(tasks[k].localMem=((int*)malloc (sizeof(int)*localSize[(tasks[k].body)])))){
+		if (NULL==(tasks[k].localMem=((int*)malloc (sizeof(int)*localSize[(tasks[k].body)-1])))){
 			perror("malloc error");
 			return (1);
 		}
 		
 		//insert argument
 		
-		tasks[k].localMem[(localSize[(tasks[k].body)])]=tasks[k].arg;
+		tasks[k].localMem[(localSize[(tasks[k].body)-1])]=tasks[k].arg;
 		
 		
 	}
@@ -415,14 +415,16 @@ int main (int argc, char * argv[]){
 	
 	
 	
+	
 	//thread creation
 	if (NULL==(cpuThr=(pthread_t*)malloc(sizeof(pthread_t)*nofCPUZ))){
 		perror ("Memory allocation for threads");
 	}
-	
+	int* omicron;
 	for (i=0; i<nofCPUZ; i++){
 		
-		thrCheck = pthread_create( &cpuThr[i], NULL, CPUact , (void *)i);
+		omicron = (int*)i;
+		thrCheck = pthread_create( &cpuThr[i], NULL, CPUact , (void *)omicron);
 		if(thrCheck){
 			fprintf(stderr,"Error - pthread_create() return code: %d\n",thrCheck);
 			exit(EXIT_FAILURE);
@@ -537,7 +539,6 @@ void shareTask(){
 	}while (toShare>0);
 	
 	
-	
 	//initialize array blockedFlag
 	if (NULL==(blockedFlag=(int*)malloc(sizeof (int)*nofCPUZ))){
 		perror ("Memory allocation error");
@@ -546,7 +547,7 @@ void shareTask(){
 	//initialize cpu values		
 	for (i=0; i< nofCPUZ; i++){
 		
-		unit[i].id=i;
+		
 		if (NULL==(unit[i].slaveTasks=(int*)malloc(sizeof (int)*unit[i].nofCpuTasks))){
 			perror ("Memory allocation error");
 			
@@ -555,14 +556,16 @@ void shareTask(){
 		{
 			perror ("Mutex error");
 		}
+		
 		pthread_mutex_lock (&(unit[i].locked));
+		unit[i].id=i;
 		blockedFlag[i]=0;
 	}
 	
 	
 	
 	//share tasks
-	
+	toShare=nofCPUZ-1;
 	k=0;
 	j=0;
 	while (k< notasks){
@@ -579,15 +582,18 @@ void shareTask(){
 			switchS=1;
 		}
 		else{
-			for (i=(nofCPUZ-1); i>=0 ; i--){
+			for (i=toShare; i>=0 ; i--){
 				
 				tasks[k].slaveTO=i;
-				unit[i].slaveTasks[j] = k; 
+				unit[i].slaveTasks[j] = tasks[k].id; 
 				k++;
 				
 				if (k==notasks){break;}
 			}
 			switchS=0;
+		}
+		if ((notasks-k)< nofCPUZ){
+			toShare=(notasks-k)-1;
 		}
 		j++;
 	}
