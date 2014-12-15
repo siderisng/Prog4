@@ -8,21 +8,23 @@
 #include <time.h>
 
 #define turns 10 //commands executed before switching task
+#define type8_t uint8_t //uint8_t for unsigned int8_t for signed
+#define type16_t uint16_t//uint16_t for unsigned int16_t for signed
 
-uint8_t ** code; // store code here
-uint8_t * sizeOfBody;// size of code for each body
+type8_t ** code; // store code here
+type8_t * sizeOfBody;// size of code for each body
 int curr; //current executed task
 int * globalMem; //global memory
 char * toPrint;
 
 
 typedef struct task{  //memory for each task
-	uint8_t body;    // body to link task to
-	uint8_t arg;     //task arguments
+	type8_t body;    // body to link task to
+	type8_t arg;     //task arguments
 	int id;          //task id
 	char state[10];  //task state
 	int reg[8];      //task registers (we used 8 reg0 is idx)
-	uint8_t pc;      // next command fouint8_t sem;r task
+	type8_t pc;      // next command fotype8_t sem;r task
 	int sem;     //sem in which task is blocked
 	time_t waket;    // time to wait if sleep is called
 	int * localMem;  //local mem for each task
@@ -32,16 +34,16 @@ int main (int argc, char * argv[]){
 	
 	srand(time(NULL)); //init time
 	FILE * fp;        //for file reading
-	uint8_t command[3];    //commands to execute
+	type8_t command[3];    //commands to execute
 	int i,k,flag=0, endflag=0;  
-	uint8_t magicbeg[4]; //for reading the magicbegz
-	uint8_t globalsize; // number of globals
-	uint8_t numofbodies;// number of bodies
-	uint16_t totalcodesize;// size of code
-	uint8_t notasks; // number of tasks
-	uint8_t codeSize; // size of code for each body
-	uint8_t * localSize; //size of locals
-	uint8_t * forGl; // reads globalinitials and stores them to globalMem(unsigned->signed)
+	type8_t magicbeg[4]; //for reading the magicbegz
+	type8_t globalsize; // number of globals
+	type8_t numofbodies;// number of bodies
+	type16_t totalcodesize;// size of code
+	type8_t notasks; // number of tasks
+	type8_t codeSize; // size of code for each body
+	type8_t * localSize; //size of locals
+	type8_t * forGl; // reads globalinitials and stores them to globalMem(unsigned->signed)
 	taskT * tasks;  //array of tasks
 	
 	
@@ -137,7 +139,7 @@ int main (int argc, char * argv[]){
 		perror("malloc error");
 		return (1);
 	}
-	if (NULL==(forGl=((uint8_t*)malloc (sizeof(uint8_t)*globalsize)))){
+	if (NULL==(forGl=((type8_t*)malloc (sizeof(type8_t)*globalsize)))){
 		perror("malloc error");
 		return (1);
 	}
@@ -151,7 +153,7 @@ int main (int argc, char * argv[]){
 	printf("\n");
 	
 	//init sizeOfBody
-	if (NULL==(sizeOfBody=((uint8_t*)malloc (sizeof(uint8_t)*numofbodies)))){
+	if (NULL==(sizeOfBody=((type8_t*)malloc (sizeof(type8_t)*numofbodies)))){
 		perror("malloc error");
 		return (1);
 	}	
@@ -163,13 +165,13 @@ int main (int argc, char * argv[]){
 	}
 	
 	//init array of codes
-	if (NULL==(code=((uint8_t**)malloc (sizeof(uint8_t*)*numofbodies)))){
+	if (NULL==(code=((type8_t**)malloc (sizeof(type8_t*)*numofbodies)))){
 		perror("malloc error");
 		return (1);
 	}
 	
 	//init localSize
-	if (NULL==(localSize=((uint8_t*)malloc (sizeof(uint8_t)*numofbodies)))){
+	if (NULL==(localSize=((type8_t*)malloc (sizeof(type8_t)*numofbodies)))){
 		perror("malloc error");
 		return (1);
 	}
@@ -220,7 +222,7 @@ int main (int argc, char * argv[]){
 		printf("Code size for %d body: %x\n",k, codeSize);
 		sizeOfBody[k]=codeSize;
 		
-		if (NULL==(code[k]=((uint8_t*)malloc (sizeof(uint8_t)*codeSize)))){
+		if (NULL==(code[k]=((type8_t*)malloc (sizeof(type8_t)*codeSize)))){
 			perror("malloc error");
 			return (1);
 		}
